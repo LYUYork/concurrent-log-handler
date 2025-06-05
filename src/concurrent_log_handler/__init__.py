@@ -923,7 +923,9 @@ class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
                         datetime.datetime.now(datetime.timezone.utc).timestamp()
                     )
                 else:
-                    current_time = int(datetime.datetime.now().timestamp())
+                    current_time = int(
+                        datetime.datetime.now().timestamp()  # noqa: DTZ005
+                    )
             except Exception as e_recovery:
                 self._console_log(
                     f"Recovery attempt with datetime.now() failed: {e_recovery}",
@@ -1074,7 +1076,9 @@ class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
             # Always write if valid (handles both new computation and empty file cases)
             if self.rolloverAt >= self.MIN_VALID_TIMESTAMP:
                 self.write_rollover_time()
-                self._console_log(f"Initialized and wrote rollover time: {self.rolloverAt}")
+                self._console_log(
+                    f"Initialized and wrote rollover time: {self.rolloverAt}"
+                )
             else:
                 self._console_log(
                     f"CRITICAL: rolloverAt ({self.rolloverAt}) is invalid. Not writing.",
@@ -1084,16 +1088,20 @@ class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
             self.clh._do_unlock()
 
     def shouldRollover(self, record: logging.LogRecord) -> bool:
-        """Determine if the rollover should occur."""
-        # Read the latest rollover time from the file
-        self.read_rollover_time()
+        """
+        Determine if the rollover should occur. This implementation uses the
+        validated _get_current_time() for the time-based check.
+        """
+        self.read_rollover_time()  # Syncs self.rolloverAt from shared state
 
-        do_rollover = False
-        if super(ConcurrentTimedRotatingFileHandler, self).shouldRollover(record):
-            do_rollover = True
-        elif self.clh.shouldRollover(record):
-            do_rollover = True
-        return bool(do_rollover)
+        # 1. Check for time-based rollover using our safe time function
+        t = self._get_current_time()
+        time_rollover_needed = t >= self.rolloverAt
+
+        # 2. Check for size-based rollover
+        size_rollover_needed = self.clh.shouldRollover(record)
+
+        return time_rollover_needed or size_rollover_needed
 
     def doRollover(self) -> None:  # noqa: C901, PLR0912, PLR0915
         """

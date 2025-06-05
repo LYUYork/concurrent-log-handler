@@ -18,6 +18,8 @@
         "Cabe",
         "concat",
         "CREAT",
+        "CRFH",
+        "CTRFH",
         "datetime",
         "gunicorn",
         "gzipped",

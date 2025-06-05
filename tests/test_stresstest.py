@@ -12,7 +12,8 @@ from stresstest import TestOptions, run_stress_test
 
 # --- Base Test Configurations (will be varied with keep_file_open) ---
 # Note: min_rollovers will likely need tuning, especially with KFO variations.
-# Values are initial estimates.
+# KFO == Keep File Open - the `keep_file_open` option on CLH, we want to test
+# both variations.
 BASE_TEST_CONFIGS = {
     "default": TestOptions(min_rollovers=70),  # Default KFO is handler's default (True)
     "backupCount_3": TestOptions(
@@ -125,6 +126,16 @@ BASE_TEST_CONFIGS = {
         log_calls=3000,
         num_processes=2,
         min_rollovers=0,  # Expect zero size-based rollovers
+    ),
+    "timed_faulty_time_injection": TestOptions(
+        use_timed=True,
+        use_faulty_time_handler=True,  # Enable a special faulty time injector
+        num_processes=3,
+        log_calls=4000,
+        min_rollovers=4,  # Expect a few rollovers
+        log_opts=TestOptions.default_timed_log_opts(
+            {"interval": 2, "debug": True, "backupCount": 5}
+        ),
     ),
 }
 

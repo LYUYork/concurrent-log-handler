@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# ruff: noqa: S311, G004
+# ruff: noqa: S311, G004, PGH003
 
 """
 This is a simple stress test for concurrent_log_handler. It creates a number of processes and each process
@@ -23,6 +23,7 @@ import re
 import string
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Dict, Optional
 
 from concurrent_log_handler import (
@@ -61,6 +62,9 @@ class TestOptions:
     # New field for explicit keep_file_open control
     keep_file_open_override: Optional[bool] = field(default=None)
     """If set, overrides the handler's default keep_file_open. None means use handler default."""
+
+    use_faulty_time_handler: bool = field(default=False)
+    "Use a handler that intentionally returns a bad timestamp to test recovery."
 
     @classmethod
     def default_log_opts(cls, override_values: Optional[Dict] = None) -> dict:
@@ -113,10 +117,10 @@ class ConcurrentLogHandlerBuggyMixin:
         if 1 <= random_choice <= 5:  # noqa: PLR2004
             return
         if 6 <= random_choice <= 10:  # noqa: PLR2004
-            super().emit(record)
-            super().emit(record)
+            super().emit(record)  # type: ignore
+            super().emit(record)  # type: ignore
         else:
-            super().emit(record)
+            super().emit(record)  # type: ignore
 
 
 class ConcurrentLogHandlerBuggy(
@@ -129,6 +133,36 @@ class ConcurrentTimedLogHandlerBuggy(
     ConcurrentLogHandlerBuggyMixin, ConcurrentTimedRotatingFileHandler
 ):
     pass
+
+
+class ConcurrentTimedLogHandlerFaultyTime(ConcurrentTimedRotatingFileHandler):
+    """
+    A test-only handler that injects a bad timestamp from time.time()
+    on a specific call to simulate a system time error.
+    """
+
+    # Use a multiprocessing-safe counter to coordinate the fault
+    _call_counter = multiprocessing.Value("i", 0)
+    _lock = multiprocessing.Lock()
+
+    # Make this configurable via log_opts for more flexible tests
+    _trigger_on_call = 5
+
+    def _get_current_time(self) -> int:
+        with self._lock:
+            self._call_counter.value += 1
+            current_call = self._call_counter.value
+
+        # Inject the fault only on a specific call across all processes
+        if current_call == self._trigger_on_call:
+            if self.clh._debug:
+                self._console_log(
+                    f"### INJECTING FAULTY TIMESTAMP (0) on call #{current_call} ###",
+                    stack=False,
+                )
+            return 0  # Return the bad timestamp
+
+        return super()._get_current_time()
 
 
 def worker_process(
@@ -145,11 +179,12 @@ def worker_process(
         final_log_opts["keep_file_open"] = test_opts.keep_file_open_override
 
     if test_opts.use_timed:
-        file_handler_class = (
-            ConcurrentTimedLogHandlerBuggy
-            if test_opts.induce_failure
-            else ConcurrentTimedRotatingFileHandler
-        )
+        if test_opts.induce_failure:
+            file_handler_class = ConcurrentTimedLogHandlerBuggy
+        elif test_opts.use_faulty_time_handler:
+            file_handler_class = ConcurrentTimedLogHandlerFaultyTime
+        else:
+            file_handler_class = ConcurrentTimedRotatingFileHandler
     else:
         file_handler_class = (
             ConcurrentLogHandlerBuggy
@@ -190,6 +225,18 @@ def worker_process(
 def validate_log_file(  # noqa: C901, PLR0911, PLR0912, PLR0915
     test_opts: TestOptions, run_time: float, expect_all: bool = True
 ) -> bool:
+
+    # CRITICAL CHECK: Ensure no files with the epoch date were created.
+    # This directly validates the fix for issue #79
+    log_dir = test_opts.log_dir
+    bad_date_files = [
+        p for p in Path(log_dir).glob("**/*") if "1969" in p.name or "1970" in p.name
+    ]
+    if bad_date_files:
+        print(
+            f"Error: Found log files with an invalid (epoch) date stamp: {bad_date_files}"
+        )
+        return False  # Fail the test immediately
     process_tracker = {i: {} for i in range(test_opts.num_processes)}
 
     log_path = os.path.join(test_opts.log_dir, test_opts.log_file)
