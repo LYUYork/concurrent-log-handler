@@ -65,7 +65,7 @@ import warnings
 from contextlib import contextmanager, suppress
 from io import TextIOWrapper
 from logging.handlers import BaseRotatingHandler, TimedRotatingFileHandler
-from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Tuple
+from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Tuple, Union
 
 from portalocker import LOCK_EX, lock, unlock
 
@@ -104,6 +104,8 @@ __all__ = [
 HAS_CHOWN: bool = hasattr(os, "chown")
 HAS_CHMOD: bool = hasattr(os, "chmod")
 
+LogFilenameType = Union[str, os.PathLike[str]]
+
 
 class ConcurrentRotatingFileHandler(BaseRotatingHandler):
     """Handler for logging to a set of files, which switches from one file to the
@@ -114,7 +116,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
 
     def __init__(  # noqa: PLR0913
         self,
-        filename: str,
+        filename: LogFilenameType,
         mode: str = "a",
         maxBytes: int = 0,
         backupCount: int = 0,
@@ -258,8 +260,8 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         self.terminator = terminator or "\n"
 
         if self.owner and HAS_CHOWN and pwd and grp:
-            self._set_uid = pwd.getpwnam(self.owner[0]).pw_uid
-            self._set_gid = grp.getgrnam(self.owner[1]).gr_gid
+            self._set_uid = pwd.getpwnam(self.owner[0]).pw_uid  # type: ignore  # noqa: PGH003
+            self._set_gid = grp.getgrnam(self.owner[1]).gr_gid  # type: ignore  # noqa: PGH003
 
         self.lockFilename = self.getLockFilename(lock_file_directory)
         self.is_locked = False
@@ -722,7 +724,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
                     with suppress(OSError):
                         self.stream.close()
                 # noinspection PyTypeChecker
-                self.stream = None
+                self.stream = None  # type: ignore  # noqa: PGH003
                 # Fall through to the fallback logic
 
         # Fallback logic: Try getsize first, then temporary open/seek/close
@@ -788,7 +790,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
 
     def _do_chown_and_chmod(self, filename: str) -> None:
         if HAS_CHOWN and self._set_uid is not None and self._set_gid is not None:
-            os.chown(filename, self._set_uid, self._set_gid)
+            os.chown(filename, self._set_uid, self._set_gid)  # type: ignore # noqa: PGH003
 
         if HAS_CHMOD and self.chmod is not None:
             os.chmod(filename, self.chmod)
@@ -814,7 +816,7 @@ class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
 
     def __init__(  # type: ignore[no-untyped-def] # noqa: PLR0913
         self,
-        filename: str,
+        filename: LogFilenameType,
         when: str = "h",
         interval: int = 1,
         backupCount: int = 0,
@@ -1240,111 +1242,70 @@ class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
                 f"Rotation completed. Next rollover at: {self.rolloverAt} ({dfn})"
             )
 
-    def getFilesToDelete(self) -> List[str]:  # noqa: C901, PLR0912
+    def getFilesToDelete(self) -> List[str]:  # noqa: C901
         """
         Determine the files to delete when rolling over.
-
-        This implementation handles the naming convention used by ConcurrentTimedRotatingFileHandler
-        when both time and size rotation are active, where files can have names like:
-        basename.YYYY-MM-DD_HH-MM-SS.1, basename.YYYY-MM-DD_HH-MM-SS.2, etc.
-
-        We need to parse both the timestamp and any counter suffix to properly sort these files
-        and delete the oldest ones when backupCount is exceeded.
+        This version correctly parses filenames with date/time stamps and optional
+        counters, and safely ignores files with malformed dates instead of
+        falling back to modification time.
         """
         dirName, baseName = os.path.split(self.baseFilename)
         fileNames = os.listdir(dirName)
-
-        # Build a list of files to analyze
-        candidates = []
-
-        # Build a pattern that matches our log file with optional .gz extension
+        file_data_for_sorting = []
         gzip_ext = ".gz" if self.clh.use_gzip else ""
+
         for fileName in fileNames:
-            # Skip the current log file - it's not a backup
-            if fileName == baseName:
+            # Huh... interesting. PyCharm detected a 20 line duplicate here
+            # with code in portalocker/__init__.py. That may suggest this is a common pattern.
+            if fileName == baseName or not fileName.startswith(baseName + "."):
                 continue
 
-            # Skip if not a rotated version of our log file
-            if not fileName.startswith(baseName + "."):
-                continue
-
-            # Skip lock files or other unrelated files
-            if not self.extMatch.search(fileName) and not (
-                gzip_ext and fileName.endswith(gzip_ext)
-            ):
-                continue
-
-            candidates.append(os.path.join(dirName, fileName))
-
-        if len(candidates) <= self.backupCount:
-            return []  # Nothing to delete yet
-
-        # Sort files by modification time primarily, and then by counter suffix if available
-        file_data = []
-        for candidate in candidates:
-            # Get basic file info
-            filename = os.path.basename(candidate)
-
-            # Extract the timestamp part
+            candidate_path = os.path.join(dirName, fileName)
             time_part = ""
             counter_part = 0
+            parse_name = fileName
+            if gzip_ext and parse_name.endswith(gzip_ext):
+                parse_name = parse_name[: -len(gzip_ext)]
 
-            # Split the filename into parts
-            parts = filename[len(baseName) + 1 :].split(".")
+            parts = parse_name[len(baseName) + 1 :].split(".")
 
-            # Look for the timestamp part and the optional counter suffix
             for i, part in enumerate(parts):
                 if self.extMatch.match(part):
                     time_part = part
-                    # Check if the next part is a counter suffix
-                    # Note: 'gz' will not pass the isdigit() check, so we don't need to explicitly exclude it
                     if i + 1 < len(parts) and parts[i + 1].isdigit():
                         counter_part = int(parts[i + 1])
                     break
 
-            # If we couldn't find a time part, try to fallback using file modification time
             if not time_part:
-                mtime = os.path.getmtime(candidate)
-                file_data.append((mtime, 0, candidate))
-            else:
-                # Use the parsed time component as primary sort key, counter as secondary
-                try:
-                    # Try to convert time part to a timestamp for proper chronological sorting
-                    time_tuple = time.strptime(time_part, self.suffix)
-                    timestamp = time.mktime(time_tuple)
-                    file_data.append((timestamp, counter_part, candidate))
-                except (ValueError, TypeError):
-                    # Fallback if time part can't be parsed
-                    mtime = os.path.getmtime(candidate)
-                    file_data.append((mtime, counter_part, candidate))
+                continue
 
-        # Sort by primary key (timestamp) then secondary key (counter)
-        # Oldest files first for proper deletion
-        file_data.sort()
+            try:
+                time_tuple = time.strptime(time_part, self.suffix)
+                timestamp = time.mktime(time_tuple)
+                file_data_for_sorting.append((timestamp, counter_part, candidate_path))
+            except (ValueError, TypeError):
+                # If a file has a part that looks like a date but doesn't parse, it's invalid.
+                # Log it and SKIP it rather than guessing its age from mtime.
+                if self.clh._debug:
+                    self._console_log(
+                        f"Could not parse date from {fileName}. Skipping from cleanup."
+                    )
+                continue
 
-        # Return the list of old files beyond the backupCount
-        result = [x[2] for x in file_data]
+        if len(file_data_for_sorting) <= self.backupCount:
+            return []
+
+        file_data_for_sorting.sort()
+        num_to_delete = len(file_data_for_sorting) - self.backupCount
+        files_to_delete = [item[2] for item in file_data_for_sorting][:num_to_delete]
 
         if self.clh._debug:
             self._console_log(
-                f"Found {len(candidates)} log files, keeping {self.backupCount}"
+                f"Found {len(file_data_for_sorting)} valid log files, keeping {self.backupCount}, "
+                f"deleting {num_to_delete} files: {files_to_delete}"
             )
-            if len(result) > 10:  # noqa: PLR2004
-                self._console_log(
-                    f"First 5 files to keep: {result[len(result) - self.backupCount:][:5]}"
-                )
-                self._console_log(f"First 5 files to delete: {result[:5]}")
-            else:
-                self._console_log(
-                    f"Files to keep: {result[len(result) - self.backupCount:]}"
-                )
-                self._console_log(
-                    f"Files to delete: {result[:len(result) - self.backupCount]}"
-                )
 
-        if len(result) > self.backupCount:
-            return result[: len(result) - self.backupCount]
-        return []
+        return files_to_delete
 
     def close(self) -> None:
         """Close all resources."""

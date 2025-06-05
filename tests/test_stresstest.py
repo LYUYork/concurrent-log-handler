@@ -84,14 +84,35 @@ BASE_TEST_CONFIGS = {
             }
         ),
     ),
+    # Issue 73
+    # "timed_aggressive_size_rot_low_backup_issue73": TestOptions(
+    #     use_timed=True,
+    #     num_processes=4,
+    #     log_calls=5000,
+    #     # We expect a very large number of rollovers
+    #     min_rollovers=500,
+    #     log_opts=TestOptions.default_timed_log_opts(
+    #         {
+    #             # Use a very small file size to force constant rotation
+    #             "maxBytes": 512,
+    #             # Use a very small backup count to make exceeding it obvious
+    #             "backupCount": 3,
+    #             # Use a very long time interval so that only size-based
+    #             # rotations occur during the test run.
+    #             "interval": 300,
+    #             "when": "S",
+    #             "debug": False,
+    #         }
+    #     ),
+    # ),
     # --- New test cases from priorities ---
-    "CRFH_backupCount_0_size_rot": TestOptions(  # Idea 2
+    "CRFH_backupCount_0_size_rot": TestOptions(
         log_opts=TestOptions.default_log_opts({"maxBytes": 1024 * 2, "backupCount": 0}),
         log_calls=2000,
         num_processes=3,
         min_rollovers=30,  # Expect rollovers, but content is truncated
     ),
-    "CTRFH_backupCount_0_timed_rot": TestOptions(  # Idea 2
+    "CTRFH_backupCount_0_timed_rot": TestOptions(
         use_timed=True,
         log_opts=TestOptions.default_timed_log_opts(
             # Rotate every 1s
@@ -101,7 +122,7 @@ BASE_TEST_CONFIGS = {
         num_processes=2,
         min_rollovers=3,  # Enough for a few timed rollovers
     ),
-    "CRFH_tiny_maxBytes_gzip": TestOptions(  # Idea 3
+    "CRFH_tiny_maxBytes_gzip": TestOptions(
         log_opts=TestOptions.default_log_opts(
             {"maxBytes": 200, "backupCount": 30, "use_gzip": True}
         ),  # backupCount reduced
@@ -109,7 +130,7 @@ BASE_TEST_CONFIGS = {
         log_calls=300,  # Reduced calls as many files generated
         min_rollovers=80,  # Expect many rollovers for small files
     ),
-    "CRFH_custom_lock_dir": TestOptions(  # Idea 4
+    "CRFH_custom_lock_dir": TestOptions(
         log_dir="output_tests_main_logs",  # Main log dir
         log_opts=TestOptions.default_log_opts(
             # Path relative to where pytest is run, or use absolute path
@@ -121,7 +142,7 @@ BASE_TEST_CONFIGS = {
         ),
         min_rollovers=70,
     ),
-    "CRFH_zero_maxBytes_no_rot": TestOptions(  # Idea 6
+    "CRFH_zero_maxBytes_no_rot": TestOptions(
         log_opts=TestOptions.default_log_opts({"maxBytes": 0, "backupCount": 5}),
         log_calls=3000,
         num_processes=2,

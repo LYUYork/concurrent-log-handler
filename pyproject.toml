@@ -147,6 +147,9 @@ ignore = [
     "EXE001",  # executable bit set (might want to revisit the ignore)
 ]
 
+# Ignore specific rules for specific file patterns
+per-file-ignores = { "tests/*" = ["S101"] }
+
 select = [
     "E",   # pycodestyle Errors - https://docs.astral.sh/ruff/rules/#error-e
     "W",   # pycodestyle Warnings - https://docs.astral.sh/ruff/rules/#warning-w
