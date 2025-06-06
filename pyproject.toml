@@ -49,6 +49,7 @@ dev = [
   "hatch",
   "pytest",
   "coverage",
+  "pytest-mock",
   "pytest-sugar",
   "pytest-cov",
   "black",
@@ -69,6 +70,7 @@ include = [
 dependencies = [
   "coverage[toml] >= 7.2",
   "pytest >= 7.4",
+  "pytest-mock",
   "pytest-sugar",
   "pytest-cov",
 ]
