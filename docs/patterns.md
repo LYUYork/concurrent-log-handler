@@ -95,6 +95,35 @@ setup_non_blocking_logging()
 logging.info("This log message won't block the calling thread!")
 ```
 
+## Contents
+
+* [When to Use These Patterns](#when-to-use-these-patterns)
+    * [You might need non-blocking logging if:](#you-might-need-non-blocking-logging-if)
+    * [You probably DON'T need it if:](#you-probably-dont-need-it-if)
+* [Pattern 1: Basic Queue Handler](#pattern-1-basic-queue-handler)
+* [Pattern 2: Graceful Degradation](#pattern-2-graceful-degradation)
+* [Pattern 3: Critical vs Background Logging](#pattern-3-critical-vs-background-logging)
+* [Pattern 4: Web Framework Integration](#pattern-4-web-framework-integration)
+    * [Django](#django)
+    * [Flask](#flask)
+    * [FastAPI](#fastapi)
+* [Pattern 5: Production Considerations](#pattern-5-production-considerations)
+    * [Monitoring Queue Depth](#monitoring-queue-depth)
+    * [Error Handling](#error-handling)
+    * [Graceful Shutdown](#graceful-shutdown)
+* [Common Pitfalls](#common-pitfalls)
+    * [Multiprocessing Spawn Mode](#multiprocessing-spawn-mode)
+    * [1. Creating Multiple QueueListeners](#1-creating-multiple-queuelisteners)
+    * [2. Unbounded Queues](#2-unbounded-queues)
+    * [3. Not Handling queue.Full](#3-not-handling-queuefull)
+    * [4. Forgetting Cleanup](#4-forgetting-cleanup)
+* [Performance Comparison](#performance-comparison)
+* [Migration from Deprecated queue.py](#migration-from-deprecated-queuepy)
+    * [Before (deprecated):](#before-deprecated)
+    * [After (recommended):](#after-recommended)
+    * [Key differences:](#key-differences)
+* [Further Reading](#further-reading)
+
 ## When to Use These Patterns
 
 ### You might need non-blocking logging if:
