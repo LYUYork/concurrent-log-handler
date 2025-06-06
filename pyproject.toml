@@ -150,7 +150,7 @@ ignore = [
 ]
 
 # Ignore specific rules for specific file patterns
-per-file-ignores = { "tests/*" = ["S101"] }
+per-file-ignores = { "tests/*" = ["S101"], "examples/non_blocking.py" = ["G004", "ARG001", "PLR2004"] }
 
 select = [
     "E",   # pycodestyle Errors - https://docs.astral.sh/ruff/rules/#error-e

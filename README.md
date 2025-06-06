@@ -342,6 +342,13 @@ Version 0.9.27 of Concurrent Log Handler added a DeprecationWarning for the `set
 The `src/example.py` file may still contain examples related to this deprecated feature during a transition period, but
 they should not be used for new development.
 
+## Non-Blocking Logging Patterns
+
+CLH handlers are synchronous by design, ensuring reliable and predictable file operations.
+If your application needs non-blocking logging (e.g., to prevent thread blocking during
+logging bursts), see [Performance Patterns](docs/patterns.md) for recommended approaches
+using Python's standard library tools.
+
 ## Best Practices and Limitations
 
 - **`maxBytes` is a Guideline:** The actual log file size might slightly exceed `maxBytes` because the check is
