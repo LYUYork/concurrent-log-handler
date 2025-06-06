@@ -1,8 +1,11 @@
 # ruff: noqa: S101, INP001, PGH003
 
 import datetime
+import sys
 import time
 from pathlib import Path
+
+import pytest
 
 from concurrent_log_handler import (
     ConcurrentTimedRotatingFileHandler,
@@ -51,6 +54,10 @@ def test_rollover_with_bad_time(monkeypatch, tmp_path: Path):
     assert handler.rolloverAt > good_current_time
 
 
+# Edge case for an edge case
+@pytest.mark.skipif(
+    sys.version_info < (3, 8), reason="Python 3.8 more permissive with dates"
+)
 def test_getFilesToDelete_ignores_unparseable_dates(tmp_path: Path, mocker):
     """
     This test ensures that files with date-like names that are not valid
