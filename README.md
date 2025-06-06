@@ -16,6 +16,10 @@ and time-based log rotation and optional log compression.
 This package is meant for applications that run in multiple processes, potentially across different hosts sharing a
 network drive, and require a centralized logging solution without the complexity of external logging services.
 
+NOTE: If you're reading this and the links to files like [CHANGELOG.md](CHANGELOG.md) don't work,
+or links within the document either, try viewing
+[this document on GitHub](https://github.com/Preston-Landers/concurrent-log-handler/) instead.
+
 ## What's new
 
 See [CHANGELOG.md](CHANGELOG.md) for details.
