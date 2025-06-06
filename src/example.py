@@ -3,25 +3,21 @@ import logging.config
 import time
 
 """
-This is an example which shows how you can use ConcurrentLogHandler. If you have
+This is an example which shows how you can use ConcurrentLogHandler for synchronous logging.
+ConcurrentLogHandler allows multiple processes to safely write to the same log file.
 
-Two basic options are demonstrated:
- * ASYNC_LOGGING = False - using as a regular synchronous log handler.
-    That means when your program logs a statement, it's processed and written to the
-    log file as part of the original thread.
- * ASYNC_LOGGING = True - performs logging statements in a background thread asynchronously.
-    This uses Python's `asyncio` package.
+Note: The deprecated async logging functionality has been removed. For async logging,
+consider using standard Python asyncio patterns with the synchronous handlers.
+More information may be available in the README.md.
 """
 
 
 def my_program():
-    ASYNC_LOGGING = False
-
     # Somewhere in your program, usually at startup or config time, you can
     # call your logging setup function. If you're in an multiprocess environment,
     # each separate process that wants to write to the same file should call the same
     # or very similar logging setup code.
-    my_logging_setup(use_async=ASYNC_LOGGING)
+    my_logging_setup()
 
     # Now for the meat of your program...
     logger = logging.getLogger("MyExample")
@@ -35,22 +31,11 @@ def my_program():
             logger.info("%d > An info message.", idx)
     print("Done with example; exiting.")
 
-    # Optional; you can manually stop the logging queue listeners at any point
-    # or let it happen at process exit.
-    if ASYNC_LOGGING:
-        from concurrent_log_handler.queue import stop_queue_listeners
 
-        stop_queue_listeners()
-
-
-def my_logging_setup(log_name="example.log", use_async=False):
+def my_logging_setup(log_name="example.log"):
     """
     An example of setting up logging in Python using a JSON dictionary to configure it.
     You can also use an outside .conf text file; see ConcurrentLogHandler/README.md
-
-    If you want to use async logging, call this after your main logging setup as shown below:
-
-    concurrent_log_handler.queue.setup_logging_queues()
     """
 
     # Import this to install logging.handlers.ConcurrentRotatingFileHandler
@@ -95,14 +80,6 @@ def my_logging_setup(log_name="example.log", use_async=False):
     }
 
     logging.config.dictConfig(logging_config)
-
-    if use_async:
-        # To enable background logging queue, call this near the end of your logging setup.
-        from concurrent_log_handler.queue import setup_logging_queues
-
-        setup_logging_queues()
-
-    return
 
 
 if __name__ == "__main__":
