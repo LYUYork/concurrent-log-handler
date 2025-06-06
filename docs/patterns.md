@@ -39,7 +39,8 @@ import logging.handlers
 import atexit
 from concurrent_log_handler import ConcurrentRotatingFileHandler
 
-def setup_non_blocking_logging(filename="app.log", max_bytes=10*1024*1024):
+
+def setup_non_blocking_logging(filename="app.log", max_bytes=10 * 1024 * 1024):
     """
     Set up non-blocking logging with CLH and Python's standard QueueHandler
     and a 10 MB file size limit.
@@ -88,6 +89,7 @@ def setup_non_blocking_logging(filename="app.log", max_bytes=10*1024*1024):
 
     return queue_listener  # Return for manual control if needed
 
+
 # Usage:  (check notes about multiprocessing above)
 setup_non_blocking_logging()
 logging.info("This log message won't block the calling thread!")
@@ -127,7 +129,7 @@ log_queue = queue.Queue(maxsize=10000)
 # Important: if using `multiprocessing`, all this must be done separately in each child!!
 file_handler = ConcurrentRotatingFileHandler(
     "app.log",
-    maxBytes=50*1024*1024,  # 50MB
+    maxBytes=50 * 1024 * 1024,  # 50MB
     backupCount=10
 )
 file_handler.setFormatter(
@@ -170,12 +172,14 @@ import queue
 import time
 from concurrent_log_handler import ConcurrentRotatingFileHandler
 
+
 class GracefulQueueHandler(logging.handlers.QueueHandler):
     """
     QueueHandler that falls back to synchronous logging when queue is full.
 
     This ensures critical messages are never lost, at the cost of occasional blocking.
     """
+
     def __init__(self, queue, fallback_handler=None):
         super().__init__(queue)
         self.fallback_handler = fallback_handler
@@ -213,6 +217,7 @@ class GracefulQueueHandler(logging.handlers.QueueHandler):
                 except queue.Full:
                     pass  # Even the warning couldn't be queued
 
+
 # Usage example
 log_queue = queue.Queue(maxsize=5000)
 
@@ -220,8 +225,8 @@ log_queue = queue.Queue(maxsize=5000)
 # the critical content in a separate file. If you want everything in one file, 
 # just give the same file name to both handlers. But then they must also share all
 # other settings like maxBytes, backupCount, etc.
-async_file_handler = ConcurrentRotatingFileHandler("app.log", maxBytes=10*1024*1024)
-sync_file_handler = ConcurrentRotatingFileHandler("app_critical.log", maxBytes=10*1024*1024)
+async_file_handler = ConcurrentRotatingFileHandler("app.log", maxBytes=10 * 1024 * 1024)
+sync_file_handler = ConcurrentRotatingFileHandler("app_critical.log", maxBytes=10 * 1024 * 1024)
 
 # Use graceful handler with fallback
 queue_handler = GracefulQueueHandler(log_queue, fallback_handler=sync_file_handler)
@@ -232,6 +237,7 @@ listener.start()
 
 # Register cleanup for the listener
 import atexit
+
 atexit.register(listener.stop)
 
 # Configure the root logger to use our graceful handler
@@ -254,36 +260,41 @@ import logging
 import logging.handlers
 from concurrent_log_handler import ConcurrentRotatingFileHandler
 
+
 class CriticalityFilter:
     """
     Filter that routes log records based on criticality.
 
     Returns True only for records that should go through this handler.
     """
+
     def __init__(self, min_level=logging.ERROR):
         self.min_level = min_level
 
     def filter(self, record):
         return record.levelno >= self.min_level
 
+
 # Set up handlers
 critical_handler = ConcurrentRotatingFileHandler(
     "critical.log",
-    maxBytes=100*1024*1024,  # 100MB for critical logs
+    maxBytes=100 * 1024 * 1024,  # 100MB for critical logs
     backupCount=20
 )
 
 # Queue for non-critical logs
 import queue
+
 log_queue = queue.Queue(maxsize=10000)
 queue_handler = logging.handlers.QueueHandler(log_queue)
 
 # Background handler for non-critical
 background_handler = ConcurrentRotatingFileHandler(
     "app.log",
-    maxBytes=50*1024*1024,
+    maxBytes=50 * 1024 * 1024,
     backupCount=10
 )
+
 
 # Set up filters
 
@@ -291,24 +302,26 @@ class CriticalOnlyFilter:
     def filter(self, record):
         return record.levelno >= logging.ERROR
 
+
 class NonCriticalFilter:
     def filter(self, record):
         return record.levelno < logging.ERROR
 
+
 critical_handler.addFilter(CriticalOnlyFilter())
-queue_handler.addFilter(NonCriticalFilter()) # INFO and above but not ERROR
+queue_handler.addFilter(NonCriticalFilter())  # INFO and above but not ERROR
 
 # Configure logger with both handlers
 logger = logging.getLogger()
 logger.addHandler(critical_handler)  # Synchronous for critical
-logger.addHandler(queue_handler)     # Async for non-critical
+logger.addHandler(queue_handler)  # Async for non-critical
 
 # Start background processing
 listener = logging.handlers.QueueListener(log_queue, background_handler)
 listener.start()
 
 # Usage
-logger.info("This goes to queue")      # Non-blocking
+logger.info("This goes to queue")  # Non-blocking
 logger.error("This is written immediately")  # Blocking but critical
 ```
 
@@ -327,13 +340,14 @@ from concurrent_log_handler import ConcurrentRotatingFileHandler
 LOG_QUEUE = queue.Queue(maxsize=10000)
 LOG_LISTENER = None
 
+
 def setup_logging():
     global LOG_LISTENER
 
     # Create file handler
     file_handler = ConcurrentRotatingFileHandler(
         '/var/log/django/app.log',
-        maxBytes=100*1024*1024,
+        maxBytes=100 * 1024 * 1024,
         backupCount=10
     )
     file_handler.setFormatter(
@@ -348,6 +362,7 @@ def setup_logging():
     )
     LOG_LISTENER.start()
     atexit.register(LOG_LISTENER.stop)
+
 
 # Call setup_logging() in your Django project's __init__.py 
 # or in settings.py at module level (not inside a function)
@@ -386,6 +401,7 @@ import queue
 import atexit
 from concurrent_log_handler import ConcurrentRotatingFileHandler
 
+
 def create_app():
     app = Flask(__name__)
 
@@ -395,7 +411,7 @@ def create_app():
     # File handler
     file_handler = ConcurrentRotatingFileHandler(
         'flask_app.log',
-        maxBytes=50*1024*1024,
+        maxBytes=50 * 1024 * 1024,
         backupCount=5
     )
     file_handler.setFormatter(
@@ -435,6 +451,7 @@ from concurrent_log_handler import ConcurrentRotatingFileHandler
 # Global listener reference
 log_listener = None
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage application lifecycle."""
@@ -445,7 +462,7 @@ async def lifespan(app: FastAPI):
 
     file_handler = ConcurrentRotatingFileHandler(
         "fastapi_app.log",
-        maxBytes=100*1024*1024,
+        maxBytes=100 * 1024 * 1024,
         backupCount=10
     )
 
@@ -467,10 +484,12 @@ async def lifespan(app: FastAPI):
     # Shutdown
     log_listener.stop()
 
+
 app = FastAPI(lifespan=lifespan)
 
 # Use standard logging
 logger = logging.getLogger(__name__)
+
 
 @app.get("/")
 async def root():
@@ -486,6 +505,7 @@ async def root():
 import logging
 import threading
 import time
+
 
 class MonitoredQueueHandler(logging.handlers.QueueHandler):
     """QueueHandler with queue depth monitoring."""
@@ -526,6 +546,7 @@ import logging
 import logging.handlers
 import sys
 
+
 class RobustQueueListener(logging.handlers.QueueListener):
     """QueueListener with better error handling."""
 
@@ -557,6 +578,7 @@ import signal
 import logging
 import logging.handlers
 import sys
+
 
 class GracefulLoggingShutdown:
     """Ensures all logs are written on shutdown."""
@@ -594,6 +616,7 @@ class GracefulLoggingShutdown:
         print("Logging shutdown complete")
         sys.exit(0)
 
+
 # Usage
 listener = logging.handlers.QueueListener(log_queue, file_handler)
 listener.start()
@@ -601,6 +624,12 @@ shutdown_handler = GracefulLoggingShutdown(listener)
 ```
 
 ## Common Pitfalls
+
+### Multiprocessing Spawn Mode
+
+Be sure to read the 
+[remarks above about multiprocessing spawn mode](#about-multiprocessing-spawn-mode)
+as this is a common pitfall when using Concurrent Log Handler.
 
 ### 1. Creating Multiple QueueListeners
 
@@ -656,6 +685,7 @@ atexit.register(listener.stop)
 # OR use context manager
 from contextlib import contextmanager
 
+
 @contextmanager
 def managed_listener(queue, *handlers):
     listener = logging.handlers.QueueListener(queue, *handlers)
@@ -669,7 +699,7 @@ def managed_listener(queue, *handlers):
 ## Performance Comparison
 
 | Pattern          | Relative Latency         | Throughput | Memory Usage | Complexity |
-| ---------------- | ------------------------ | ---------- | ------------ | ---------- |
+|------------------|--------------------------|------------|--------------|------------|
 | Synchronous CLH  | Baseline (I/O Bound)     | Medium     | Low          | Low        |
 | QueueHandler     | Very Low (~1000x faster) | High       | Medium       | Medium     |
 | Direct to stdout | Low (~10-100x faster)    | High       | Low          | Low        |
@@ -705,7 +735,7 @@ from concurrent_log_handler import ConcurrentRotatingFileHandler
 log_queue = queue.Queue(maxsize=10000)
 
 # Your CLH handler
-clh_handler = ConcurrentRotatingFileHandler("app.log", maxBytes=10*1024*1024)
+clh_handler = ConcurrentRotatingFileHandler("app.log", maxBytes=10 * 1024 * 1024)
 
 # Queue handler for non-blocking
 queue_handler = logging.handlers.QueueHandler(log_queue)

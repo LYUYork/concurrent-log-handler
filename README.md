@@ -30,20 +30,11 @@ See [CHANGELOG.md](CHANGELOG.md) for details.
   - Fixes Issue [#79](https://github.com/Preston-Landers/concurrent-log-handler/issues/79)
     Harden timed handler's rollover mechanism against timestamp errors or other sync corruption.
 
-- **Important Notice (June 2025): Deprecation of Generic Background Logging Utility**
-  - The `concurrent_log_handler.queue` module, including the `setup_logging_queues()` function, is now **deprecated**.
-  - A `DeprecationWarning` is now emitted by `concurrent_log_handler.queue.setup_logging_queues()`.
-  - This feature was intended to provide a generic way (not specific to CLH) to make standard logging handlers
-    non-blocking. However, it has proven to have compatibility issues with more complex logging setups (such as
-    those using `structlog`) and presents other robustness concerns.
-  - **This utility will be removed or completely redesigned in a future major release (e.g., v1.0.0).**
-  - The core log handlers (`ConcurrentRotatingFileHandler`, `ConcurrentTimedRotatingFileHandler`) are
-    **not** affected by this deprecation and remain fully supported in synchronous mode. The performance
-    implications of using synchronous logging are likely to be negligible for many applications, but
-    you should test this in your environment.
-  - If you are currently using `concurrent_log_handler.queue.setup_logging_queues()` you are advised to transition
-    away from it. See [Asynchronous Logging](#background--asynchronous-logging) below for more details
-    and recommendations.
+- **Important Notice (June 2025): Background Logging Utility Deprecated**
+  - The `concurrent_log_handler.queue` module is now **deprecated** (will be removed in v1.0.0).
+  - It has compatibility issues with complex logging setups and other robustness concerns.
+  - **Recommended:** Use the standard library patterns shown in [Performance Patterns](docs/patterns.md).
+  - The core CLH handlers remain fully supported and are not affected by this deprecation.
 
 - **Version 0.9.26**: (May 2025)
   - Improved performance, especially on POSIX systems.
@@ -51,31 +42,14 @@ See [CHANGELOG.md](CHANGELOG.md) for details.
 
 ## Key Features
 
-- **Concurrent Logging:** Allows multiple processes and threads to safely write to the same log file without
-  corrupting each other's messages.
-  - Note that this happens in a blocking manner; i.e., if one process is writing to the log file, other
-    processes will wait until the first process is done before writing their messages.
-  - Note that your application process/thread writing the log message will also block while waiting to
-    write to the log file.
-- **File Rotation:**
-  - `ConcurrentRotatingFileHandler`: Rotates logs when they reach a specified size.
-  - `ConcurrentTimedRotatingFileHandler`: Rotates logs based on time intervals (e.g., hourly, daily) and optionally by
-    size.
-- **Cross-Platform:** Supports both Windows and POSIX systems (Linux, macOS, etc.).
-- **Reliable Locking:** Uses `portalocker` for advisory file locking to ensure exclusive write access during log
-  emission and rotation.
-  - Advisory means that other (e.g., external) processes could ignore the lock on POSIX.
-- **Log Compression:** Optionally compresses rotated log files using gzip (`use_gzip=True`).
-- **Asynchronous Logging: (Deprecated)** Includes an optional `QueueListener` / `QueueHandler` for background logging,
-  minimizing impact on application performance.
-  - Important: see the note below about the [deprecation of this feature](#background--asynchronous-logging).
-- **Customizable:**
-  - Control over rotated file naming (`namer`).
-  - Set owner and mode permissions for rotated files on Unix-like systems.
-  - Specify custom line endings (`newline`, `terminator`).
-  - Place lock files in a separate directory (`lock_file_directory`).
-- **Python 3.6+:** Modern Python support (for Python 2.7, use
-  version [0.9.22](https://github.com/Preston-Landers/concurrent-log-handler/releases/tag/0.9.22)).
+- **Concurrent Logging:** Multiple processes and threads safely write to the same log file.
+- **File Rotation:** Size-based and time-based rotation with optional compression.  
+- **Cross-Platform:** Windows and POSIX support with reliable file locking.
+- **Customizable:** Control naming, permissions, line endings, and lock file placement.
+- **Performance Optimized:** Keeps files open between writes for better performance.
+- **Python 3.6 through current versions:** Modern Python support.
+- **Focused Design:** Reliably handles file operations. For non-blocking behavior, see our recommended 
+    [Application-Level Performance Patterns](docs/patterns.md).
 
 ## Primary Use Cases
 
@@ -160,14 +134,24 @@ in mind:
    - This requirement also **may not** apply to child processes created via `fork()` (e.g., with Gunicorn `--preload`),
      where file descriptors might be inherited. However, explicit instantiation in each process is the safest approach.
 
-2. **Consistent Configuration:**
+2. **Multiprocessing and Spawn mode:**
+
+   Just to reemphasize the point above:
+
+   - If you use `multiprocessing` with the default `spawn` start method (the default on Windows and macOS), 
+     each child process must create its own CLH handler instance.
+   - In your child process startup code, instantiate the handler as shown in the example above.
+   - Usually this means you can call your standard logging setup function in the child.
+   - Don't just initialize your logging code in the parent process and allow child processes to inherit loggers.
+     
+3. **Consistent Configuration:**
 
    - All processes writing to the _same log file_ **must** use identical settings for the CLH handler (e.g.,
      `maxBytes`, `backupCount`, `use_gzip`, rotation interval, etc.).
    - Do not mix CLH handlers with other logging handlers (like `RotatingFileHandler` from the standard library) writing
      to the same file. This can lead to unpredictable behavior and data loss.
 
-3. **Networked/Cloud Storage:**
+4. **Networked/Cloud Storage:**
 
    - When logging to files on network shares (NFS, SMB/CIFS) or cloud-synced folders (Dropbox, Google Drive, OneDrive),
      ensure that the advisory file locking provided by `portalocker` works correctly in your specific environment.
@@ -179,10 +163,15 @@ in mind:
    - If you run into problems, try the `keep_file_open=False` option to close the log file after each write. This
      may help with certain networked filesystems but can impact performance.
 
-4. **One Handler Instance per Log File:**
+5. **One Handler Instance per Log File:**
 
-   - If your application writes to multiple distinct log files, each log file requires its own dedicated CLH handler
-     instance within each process.
+   - If your application writes to multiple distinct log files, each log file
+     requires its own dedicated CLH handler instance within each process.
+
+   - It is possible to have multiple CLH handlers that point to the same log file,
+     for example, if you want to log different log levels or formats to the same
+     file. However, all other rotation settings must be identical across these
+     handlers.
 
 ## Handler Details
 
@@ -255,6 +244,68 @@ Both handlers share several configuration options (passed as keyword arguments):
   - On Windows, the log file will always be closed after writes to allow for rotation, but this option still affects
     whether the lock file is kept open.
 
+---
+
+## Non-Blocking Logging Patterns (Optional)
+
+CLH handlers are **synchronous by design** for maximum reliability and
+predictability. However, some applications need non-blocking logging to prevent
+thread blocking during logging bursts or high-frequency logging scenarios.
+
+### Quick Note on Performance:
+
+With CLH's recent performance improvements (v0.9.26+), many applications won't
+need non-blocking patterns. Test your specific use case first - synchronous
+logging is simpler and more reliable.
+
+### When You Might Need Non-Blocking Logging:
+ 
+- Multiple threads logging heavily during error conditions
+- Web application request threads that shouldn't block on I/O
+- High-frequency logging in performance-critical applications
+- Applications with strict latency requirements
+
+### Quick Start: The Recommended Approach
+
+For most non-blocking needs, use Python's standard library `QueueHandler`:
+
+```python
+import logging
+import logging.handlers
+import queue
+import atexit
+from concurrent_log_handler import ConcurrentRotatingFileHandler
+
+# Create queue and handlers
+log_queue = queue.Queue(maxsize=10000)
+file_handler = ConcurrentRotatingFileHandler("app.log", maxBytes=10*1024*1024)
+queue_handler = logging.handlers.QueueHandler(log_queue)
+
+# Set up background processing
+listener = logging.handlers.QueueListener(log_queue, file_handler)
+listener.start()
+atexit.register(listener.stop)
+
+# Configure logger
+logging.getLogger().addHandler(queue_handler)
+logging.info("This won't block your thread!")
+```
+
+### Complete Guide
+
+For comprehensive patterns including:
+ 
+- **Web framework integration** (Django, Flask, FastAPI)
+- **Graceful degradation** when queues fill up
+- **Production monitoring** and error handling
+- **Critical vs background logging** strategies
+- **Performance comparisons** and best practices
+
+**See the complete guide: [Performance Patterns](docs/patterns.md)**
+
+This approach uses Python's standard library tools, giving you full control 
+while keeping CLH focused on reliable file operations.
+
 ## Logging Configuration File Usage (`fileConfig`)
 
 You can configure CLH using Python's `logging.config.fileConfig`:
@@ -295,71 +346,65 @@ format = %(asctime)s - %(name)s - %(levelname)s - %(message)s
 **Note:** Ensure you `import concurrent_log_handler` in your Python code _before_ calling `fileConfig()`. Python 3.7+ is
 recommended for `kwargs` support in config files.
 
-## Background / Asynchronous Logging
+## Migration from Deprecated Background Logging
 
-**Deprecated Feature**
+**⚠️ Removal Timeline: The `queue` module will be removed in v1.0.0 (planned for Summer 2025)**
 
-Previous versions of `concurrent-log-handler` included a utility module, `concurrent_log_handler.queue`, which provided
-a `setup_logging_queues()` function. This function aimed to convert all existing standard Python logging handlers
-(not just those belonging to CLH) into non-blocking (asynchronous) handlers by routing log messages through a
-background thread and queue.
+**If you're currently using `concurrent_log_handler.queue.setup_logging_queues()`:**
 
-**This generic backgrounding utility (`setup_logging_queues()` and the `queue.py` module) is now deprecated and will be
-removed or completely redesigned in a future major release.**
+This utility is deprecated and will be removed in v1.0.0 due to compatibility
+issues with complex logging setups. It was provided for convenience but is not
+an integral part of CLH's functionality.
 
-### Why is this happening?
+**Important**: consider whether you need non-blocking logging at all. Typical 
+applications can get reasonable performance with the normal (synchronous) CLH handlers.
 
-A few reasons:
+### Migration Steps:
 
-1. **Compatibility issues:** The generic approach of modifying existing handlers is incompatible with
-   some advanced logging configurations and libraries (e.g., `structlog`) that have specific expectations about
-   `LogRecord` attributes or the logging flow.
-2. **Robustness:** The current implementation has inherent limitations, such as:
-   - Using an unbounded queue, which could lead to excessive memory consumption if log messages are produced faster
-     than they can be written to disk.
-   - Lack of direct feedback or error propagation from the background logging thread to the application.
-3. **Maintenance:** Ensuring such a generic utility works reliably across all possible Python
-   logging setups and handler types is complex and difficult to make "bulletproof."
-   The `queue.py` module has no direct relationship to the CLH log handler core functionality and is essentially
-   independent utility code.
+1. **Remove** calls to `setup_logging_queues()`
 
-### What should I do?
+2. **Replace** with the standard library patterns shown above or in 
+   [Performance Patterns](docs/patterns.md)
+   
+   **or**: simply use the CLH handlers directly in your application without the
+   queue utility.
 
-- If you are currently using `setup_logging_queues()`, I strongly advise you to **stop using it** and rely on the
-  standard blocking behavior of the `ConcurrentRotatingFileHandler` and `ConcurrentTimedRotatingFileHandler`. For many
-  applications, the performance impact of direct blocking writes is relatively small, especially on POSIX (e.g. Linux)
-  with recent updates to CLH.
-- If non-blocking logging is a critical requirement for your application, consider these alternatives:
-  - Implement a custom queuing solution specific to your application's logging needs and handlers.
-  - Check the asynchronous capabilities within your application framework.
-  - The standard library's `logging.handlers.QueueHandler` and `logging.handlers.QueueListener` can serve as building
-    blocks for custom solutions if you wish to manage the listener and its target handlers directly. You can copy
-    the code from `queue.py` in this repository to use as a reference or starting point.
-- I'm looking into more robust, and potentially fully integrated, ways to offer optional background logging
-  capability directly within the main CLH handlers in the future.
+3. **Test** your application with the new approach
 
-Version 0.9.27 of Concurrent Log Handler added a DeprecationWarning for the `setup_logging_queues()` function.
-The `src/example.py` file may still contain examples related to this deprecated feature during a transition period, but
-they should not be used for new development.
+### Why the Change?
 
-## Non-Blocking Logging Patterns
+The old utility:
+- ❌ Modified all handlers globally (monkey patching)  
+- ❌ Had compatibility issues with advanced logging libraries
+- ❌ Used unbounded queues (memory risk)
+- ❌ Lacked proper error handling
 
-CLH handlers are synchronous by design, ensuring reliable and predictable file operations.
-If your application needs non-blocking logging (e.g., to prevent thread blocking during
-logging bursts), see [Performance Patterns](docs/patterns.md) for recommended approaches
-using Python's standard library tools.
+The new approach:
+
+- ✅ Uses standard library patterns
+- ✅ Gives applications explicit control  
+- ✅ Works with any logging setup
+- ✅ Provides better error visibility
+
+**For detailed migration examples, see [Performance Patterns](docs/patterns.md).**
 
 ## Best Practices and Limitations
 
-- **`maxBytes` is a Guideline:** The actual log file size might slightly exceed `maxBytes` because the check is
-  performed _before_ writing a new log message. The file can grow by the size of that last message. This behavior
-  prioritizes preserving log records. Standard `RotatingFileHandler` is stricter but may truncate.
-- **`backupCount` Performance:** Avoid excessively high `backupCount` values (e.g., \> 20-50). Renaming many files
-  during rotation can be slow, and this occurs while the log file is locked. Consider increasing `maxBytes` instead if
-  you need to retain more history in fewer files.
-- **Gzip Compression:** Enabling `use_gzip` adds CPU overhead. Using the background logging queue can help offload this.
-- **Restart on Configuration Change:** If you change logging settings (e.g., rotation parameters), it's often best to
-  restart all application processes to ensure all writers use the new, consistent configuration.
+- **`maxBytes` is a Guideline:** The actual log file size might slightly exceed `maxBytes` 
+  because the check is performed _before_ writing a new log message. The file can
+  grow by the size of that last message. This behavior prioritizes preserving log
+  records. Standard `RotatingFileHandler` is stricter but may truncate.
+
+- **`backupCount` Performance:** Avoid excessively high `backupCount` values (e.g., \> 20-50). 
+  Renaming many files during rotation can be slow, and this occurs while the log
+  file is locked. Consider increasing `maxBytes` instead if you need to retain
+  more history in fewer files.
+
+- **Gzip Compression:** Enabling `use_gzip` adds CPU overhead.
+
+- **Restart on Configuration Change:** If you change logging settings (e.g.,
+  rotation parameters), it's often best to restart all application processes to
+  ensure all writers use the new, consistent configuration.
 
 ## For Developers (Contributing)
 
