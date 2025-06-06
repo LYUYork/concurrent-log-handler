@@ -20,22 +20,30 @@ network drive, and require a centralized logging solution without the complexity
 
 See [CHANGELOG.md](CHANGELOG.md) for details.
 
+- **Version 0.9.27**: (June 6th, 2025)
+  - Fixes Issue [#73](https://github.com/Preston-Landers/concurrent-log-handler/issues/73)
+    Fix timed rotation handler's file cleanup logic.
+  - Fixes Issue [#79](https://github.com/Preston-Landers/concurrent-log-handler/issues/79)
+    Harden timed handler's rollover mechanism against timestamp errors or other sync corruption.
+
+- **Important Notice (June 2025): Deprecation of Generic Background Logging Utility**
+  - The `concurrent_log_handler.queue` module, including the `setup_logging_queues()` function, is now **deprecated**.
+  - A `DeprecationWarning` is now emitted by `concurrent_log_handler.queue.setup_logging_queues()`.
+  - This feature was intended to provide a generic way (not specific to CLH) to make standard logging handlers
+    non-blocking. However, it has proven to have compatibility issues with more complex logging setups (such as
+    those using `structlog`) and presents other robustness concerns.
+  - **This utility will be removed or completely redesigned in a future major release (e.g., v1.0.0).**
+  - The core log handlers (`ConcurrentRotatingFileHandler`, `ConcurrentTimedRotatingFileHandler`) are
+    **not** affected by this deprecation and remain fully supported in synchronous mode. The performance
+    implications of using synchronous logging are likely to be negligible for many applications, but
+    you should test this in your environment.
+  - If you are currently using `concurrent_log_handler.queue.setup_logging_queues()` you are advised to transition
+    away from it. See [Asynchronous Logging](#background--asynchronous-logging) below for more details
+    and recommendations.
+
 - **Version 0.9.26**: (May 2025)
   - Improved performance, especially on POSIX systems.
   - Added testing for Python 3.13 and improved project configuration and documentation.
-- **Important Notice (May 2025): Deprecation of Generic Background Logging Utility**
-    - The `concurrent_log_handler.queue` module, including the `setup_logging_queues()` function, is now **deprecated**.
-    - This feature was intended to provide a generic way (not specific to CLH) to make standard logging handlers 
-      non-blocking. However, it has proven to have compatibility issues with more complex logging setups (such as 
-      those using `structlog`) and presents other robustness concerns.
-    - **This utility will be removed or completely redesigned in a future major release (e.g., v1.0.0).**
-    - The core log handlers (`ConcurrentRotatingFileHandler`, `ConcurrentTimedRotatingFileHandler`) are 
-      **not** affected by this deprecation and remain fully supported in synchronous mode. The performance
-      implications of using synchronous logging are likely to be negligible for many applications, but 
-      you should test this in your environment.
-    - If you are currently using `concurrent_log_handler.queue.setup_logging_queues()` you are advised to transition 
-      away from it. See [Asynchronous Logging](#background--asynchronous-logging) below for more details 
-      and recommendations.
 
 ## Key Features
 
@@ -43,7 +51,7 @@ See [CHANGELOG.md](CHANGELOG.md) for details.
   corrupting each other's messages.
   - Note that this happens in a blocking manner; i.e., if one process is writing to the log file, other
     processes will wait until the first process is done before writing their messages.
-  - Note that your application process/thread writing the log message will also block while waiting to 
+  - Note that your application process/thread writing the log message will also block while waiting to
     write to the log file.
 - **File Rotation:**
   - `ConcurrentRotatingFileHandler`: Rotates logs when they reach a specified size.
@@ -54,9 +62,9 @@ See [CHANGELOG.md](CHANGELOG.md) for details.
   emission and rotation.
   - Advisory means that other (e.g., external) processes could ignore the lock on POSIX.
 - **Log Compression:** Optionally compresses rotated log files using gzip (`use_gzip=True`).
-- **Asynchronous Logging: (Deprecated)** Includes an optional `QueueListener` / `QueueHandler` for background logging, 
-    minimizing impact on application performance.
-    - Important: see the note below about the [deprecation of this feature](#background--asynchronous-logging).
+- **Asynchronous Logging: (Deprecated)** Includes an optional `QueueListener` / `QueueHandler` for background logging,
+  minimizing impact on application performance.
+  - Important: see the note below about the [deprecation of this feature](#background--asynchronous-logging).
 - **Customizable:**
   - Control over rotated file naming (`namer`).
   - Set owner and mode permissions for rotated files on Unix-like systems.
@@ -289,7 +297,7 @@ recommended for `kwargs` support in config files.
 
 Previous versions of `concurrent-log-handler` included a utility module, `concurrent_log_handler.queue`, which provided
 a `setup_logging_queues()` function. This function aimed to convert all existing standard Python logging handlers
-(not just those belonging to CLH) into non-blocking (asynchronous) handlers by routing log messages through a 
+(not just those belonging to CLH) into non-blocking (asynchronous) handlers by routing log messages through a
 background thread and queue.
 
 **This generic backgrounding utility (`setup_logging_queues()` and the `queue.py` module) is now deprecated and will be
@@ -303,30 +311,30 @@ A few reasons:
    some advanced logging configurations and libraries (e.g., `structlog`) that have specific expectations about
    `LogRecord` attributes or the logging flow.
 2. **Robustness:** The current implementation has inherent limitations, such as:
-    * Using an unbounded queue, which could lead to excessive memory consumption if log messages are produced faster
-      than they can be written to disk.
-    * Lack of direct feedback or error propagation from the background logging thread to the application.
+   - Using an unbounded queue, which could lead to excessive memory consumption if log messages are produced faster
+     than they can be written to disk.
+   - Lack of direct feedback or error propagation from the background logging thread to the application.
 3. **Maintenance:** Ensuring such a generic utility works reliably across all possible Python
    logging setups and handler types is complex and difficult to make "bulletproof."
-   The `queue.py` module has no direct relationship to the CLH log handler core functionality and is essentially 
+   The `queue.py` module has no direct relationship to the CLH log handler core functionality and is essentially
    independent utility code.
 
 ### What should I do?
 
-* If you are currently using `setup_logging_queues()`, I strongly advise you to **stop using it** and rely on the
+- If you are currently using `setup_logging_queues()`, I strongly advise you to **stop using it** and rely on the
   standard blocking behavior of the `ConcurrentRotatingFileHandler` and `ConcurrentTimedRotatingFileHandler`. For many
-  applications, the performance impact of direct blocking writes is relatively small, especially on POSIX (e.g. Linux) 
+  applications, the performance impact of direct blocking writes is relatively small, especially on POSIX (e.g. Linux)
   with recent updates to CLH.
-* If non-blocking logging is a critical requirement for your application, consider these alternatives:
-    * Implement a custom queuing solution specific to your application's logging needs and handlers.
-    * Check the asynchronous capabilities within your application framework.
-    * The standard library's `logging.handlers.QueueHandler` and `logging.handlers.QueueListener` can serve as building
-      blocks for custom solutions if you wish to manage the listener and its target handlers directly. You can copy
-      the code from `queue.py` in this repository to use as a reference or starting point.
-* I'm looking into more robust, and potentially fully integrated, ways to offer optional background logging 
+- If non-blocking logging is a critical requirement for your application, consider these alternatives:
+  - Implement a custom queuing solution specific to your application's logging needs and handlers.
+  - Check the asynchronous capabilities within your application framework.
+  - The standard library's `logging.handlers.QueueHandler` and `logging.handlers.QueueListener` can serve as building
+    blocks for custom solutions if you wish to manage the listener and its target handlers directly. You can copy
+    the code from `queue.py` in this repository to use as a reference or starting point.
+- I'm looking into more robust, and potentially fully integrated, ways to offer optional background logging
   capability directly within the main CLH handlers in the future.
 
-The next version of Concurrent Log Handler will add a DeprecationWarning for the `setup_logging_queues()` function.
+Version 0.9.27 of Concurrent Log Handler added a DeprecationWarning for the `setup_logging_queues()` function.
 The `src/example.py` file may still contain examples related to this deprecated feature during a transition period, but
 they should not be used for new development.
 

@@ -25,6 +25,7 @@ import atexit
 import logging
 import queue
 import sys
+import warnings
 from logging.handlers import QueueHandler, QueueListener
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -67,6 +68,16 @@ class AsyncQueueListener(QueueListener):
 
 
 def setup_logging_queues() -> None:
+
+    deprecation_message = (
+        "The `concurrent_log_handler.queue` module and `setup_logging_queues()` are deprecated "
+        "and will be removed in a future version. This utility has known robustness and "
+        "compatibility issues with complex logging setups. It is recommended to stop "
+        "using this function and rely on the handlers' default synchronous behavior. "
+        "Check the project README for additional developments."
+    )
+    warnings.warn(deprecation_message, DeprecationWarning, stacklevel=2)
+
     if sys.version_info.major < 3:  # noqa: PLR2004
         raise RuntimeError("This feature requires Python 3.")
 

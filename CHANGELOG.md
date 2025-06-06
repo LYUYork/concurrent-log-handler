@@ -1,6 +1,38 @@
 # Change Log
 
+- 0.9.27:
+
+  - Fixes [Issue #73](https://github.com/Preston-Landers/concurrent-log-handler/issues/73)
+  
+    Fixed a subtle bug in the timed handler where it could fail to delete the
+    correct number of old log files during rotation.
+
+    This could occur if a backup file had a name containing a date-like string
+    that was not a valid calendar date (e.g., log.9999-99-99).
+
+    The cleanup logic no longer falls back to using modification time in these
+    cases. It now safely ignores anomalous files, ensuring the cleanup process
+    is predictable and targets only valid, dated backups.
+
+  - Fixes [Issue #79](https://github.com/Preston-Landers/concurrent-log-handler/issues/79)
+
+    Greatly improved the resiliency of the timed rollover mechanism, hardening
+    it against timestamp errors and state corruption. The handler now validates
+    all timestamps from the system clock and the internal lock file against a
+    reasonable minimum. This prevents rollover failures that could occur if the
+    system time was set to an invalid value (e.g., the 1970 epoch) or if the
+    lock file's state became corrupted.
+
+  - Adds `DeprecationWarning` to `setup_logging_queues`:
+
+    The `concurrent_log_handler.queue` module and `setup_logging_queues()` are deprecated
+    and will be removed in a future version. This utility has known robustness and
+    compatibility issues with complex logging setups. It is recommended to stop
+    using this function and rely on the handlers' default synchronous behavior.
+    Check the project README for additional developments.
+
 - 0.9.26:
+
   - Significant performance improvements, especially on the POSIX side.
   - This is mainly from keeping the file handles open for both the log file and the lock file, reducing
     system calls and overhead.
@@ -11,20 +43,21 @@
     to the **lock** file and can improve performance when `True`.
   - Fixed some bugs in the Timed handler around file rotation (selecting files to delete). These
     would likely only arise with artificially low rotation intervals such as in the unit tests.
-  - Make the gzip option slightly more robust to errors. In the future, we may offload this to a 
+  - Make the gzip option slightly more robust to errors. In the future, we may offload this to a
     background process, and introduce additional compression options.
   - Developer items:
     - Updated the GitHub Actions CI test matrix:
       - Added Python 3.13 for testing.
-      - GitHub Actions no longer supports runners for automated testing under Python 3.6 and 3.7.  
-      - **Note:** The package continues to target Python 3.6+ for runtime compatibility.  
+      - GitHub Actions no longer supports runners for automated testing under Python 3.6 and 3.7.
+      - **Note:** The package continues to target Python 3.6+ for runtime compatibility.
     - Ensure required packages like `black` are installed in "dev mode" (`pip install -e .[dev]`).
     - Added a `lint.sh` script to run Black, ruff, and mypy in one go.
     - Added additional unit tests for different scenarios, including the new `keep_file_open` option.
-    - Better configuration of test coverage, which is now approx. 74% of the main file, with most 
+    - Better configuration of test coverage, which is now approx. 74% of the main file, with most
       non-covered code consisting of error conditions and fallbacks which aren't crucial to test.
 
 - 0.9.25:
+
   - Improvements to project config (`pyproject.toml`) with `hatch` (PR #65), and the addition of
     Python typing hints (PR #69). Thanks @stumpylog.
   - Fixes [Issue #66](https://github.com/Preston-Landers/concurrent-log-handler/issues/66)
@@ -33,33 +66,38 @@
     Timed mode causes DeprecationWarning if you don't give the `delay` parameter. Thanks @platinops.
 
 - 0.9.24:
+
   - Fixes #58 - Eliminate `use_2to3` kwarg causing problems in setup.py.
 
 - 0.9.23:
+
   - Begin requiring Python 3.6 or higher.
   - Implements a `ConcurrentTimedRotatingFileHandler` class which provides both time and/or size
     based rotation. See the [README.md](./README.md#time-based-rotation-settings) for details.
   - Fix #56 - don't fail when setting `owner` on Windows, though it will have no effect.
 
 - 0.9.22:
+
   - Fix Python 2.7 compatibility (yet again)
   - Important note: this is the FINAL release which will support Python 2.7.
     Future versions will support Python 3.6+ only.
 
 - 0.9.21:
+
   - Added new optional parameter "lock_file_directory"
     - Creates given directory, if it does not exist.
     - Writes lock file into given directory, instead next to the logging file itself.
     - Useful when the log files reside in a cloud synced folder like Dropbox, Google Drive,
-        OneDrive, etc. Sometimes these do not work correctly with the lock files.
+      OneDrive, etc. Sometimes these do not work correctly with the lock files.
   - Fix not replacing the last file (greatest backup number) when rotating. Thanks tzongw.
     - <https://github.com/Preston-Landers/concurrent-log-handler/pull/52>
   - Add support for "namer" function to customize the naming of rotated files. Thanks @dashedman.
   - Enhanced test suite using tox and pytest.
 
 - 0.9.20: Threaded logging queue now uses asyncio and can be used after fork (PR#32).
+
   - The classifiers have been updated to indicate generic Python 3 support without needing to
-      specify all sub-versions. (However, Python 3.0 to 3.4 support is not claimed.)
+    specify all sub-versions. (However, Python 3.0 to 3.4 support is not claimed.)
   - Better performance with large values for backupCount (number of rotated files to keep).
   - You can set the file owner / group to 'root' (uid 0)
   - Test script has been made more reliable.
@@ -70,10 +108,11 @@
 - 0.9.18: Remove ez_setup from the setup.py
 
 - 0.9.17: Contains the following fixes:
+
   - Catch exceptions when unlocking the lock.
   - Clarify documentation, esp. with use of multiprocessing
-  - In Python 2, don't request/allow portalocker 2.0 which won't work.  (Require portalocker<
-      =1.7.1)
+  - In Python 2, don't request/allow portalocker 2.0 which won't work. (Require portalocker<
+    =1.7.1)
 
   NOTE: the next release will likely be a 1.0 release candidate.
 
@@ -102,9 +141,10 @@
 - 0.9.9: Fix Python 2 compatibility broken in last release
 
 - 0.9.8: Bug fixes and permission features
+
   - Fix for issue #4 - AttributeError: 'NoneType' object has no attribute 'write' This error could
-      be caused if a rollover occurred inside a logging statement that was generated from within
-      another logging statement's format() call.
+    be caused if a rollover occurred inside a logging statement that was generated from within
+    another logging statement's format() call.
   - Fix for PyWin32 dependency specification (explicitly require PyWin32)
   - Ability to specify owner and permissions (mode) of rollover files [Unix only]
 
@@ -116,9 +156,10 @@
 - 0.9.4: Fix setup.py to not include tests in distribution.
 
 - 0.9.3: Refactoring release
+
   - For publishing fork on pypi as `concurrent-log-handler` under new package name.
   - NOTE: PyWin32 is required on Windows but is not an explicit dependency because the PyWin32
-      package is not currently installable through pip.
+    package is not currently installable through pip.
   - Fix lock behavior / race condition
 
 - 0.9.2: Initial release of fork by Preston Landers based on a fork of Lowell Alleman's
