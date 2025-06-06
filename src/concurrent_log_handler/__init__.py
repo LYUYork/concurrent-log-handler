@@ -104,7 +104,7 @@ __all__ = [
 HAS_CHOWN: bool = hasattr(os, "chown")
 HAS_CHMOD: bool = hasattr(os, "chmod")
 
-LogFilenameType = Union[str, os.PathLike[str]]
+LogFilenameType = Union[str, os.PathLike]
 
 
 class ConcurrentRotatingFileHandler(BaseRotatingHandler):
