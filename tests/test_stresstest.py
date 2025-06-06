@@ -84,27 +84,6 @@ BASE_TEST_CONFIGS = {
             }
         ),
     ),
-    # Issue 73
-    # "timed_aggressive_size_rot_low_backup_issue73": TestOptions(
-    #     use_timed=True,
-    #     num_processes=4,
-    #     log_calls=5000,
-    #     # We expect a very large number of rollovers
-    #     min_rollovers=500,
-    #     log_opts=TestOptions.default_timed_log_opts(
-    #         {
-    #             # Use a very small file size to force constant rotation
-    #             "maxBytes": 512,
-    #             # Use a very small backup count to make exceeding it obvious
-    #             "backupCount": 3,
-    #             # Use a very long time interval so that only size-based
-    #             # rotations occur during the test run.
-    #             "interval": 300,
-    #             "when": "S",
-    #             "debug": False,
-    #         }
-    #     ),
-    # ),
     # --- New test cases from priorities ---
     "CRFH_backupCount_0_size_rot": TestOptions(
         log_opts=TestOptions.default_log_opts({"maxBytes": 1024 * 2, "backupCount": 0}),

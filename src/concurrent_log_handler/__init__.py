@@ -1248,6 +1248,11 @@ class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
         This version correctly parses filenames with date/time stamps and optional
         counters, and safely ignores files with malformed dates instead of
         falling back to modification time.
+
+        NOTE: Only files matching the current rotation format will be considered
+        for deletion. If you change the rotation interval (e.g., from daily to
+        hourly), old files with different formats will be preserved and must be
+        manually cleaned up.
         """
         dirName, baseName = os.path.split(self.baseFilename)
         fileNames = os.listdir(dirName)
