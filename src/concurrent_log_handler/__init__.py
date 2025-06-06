@@ -260,8 +260,12 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         self.terminator = terminator or "\n"
 
         if self.owner and HAS_CHOWN and pwd and grp:
-            self._set_uid = pwd.getpwnam(self.owner[0]).pw_uid  # type: ignore  # noqa: PGH003
-            self._set_gid = grp.getgrnam(self.owner[1]).gr_gid  # type: ignore  # noqa: PGH003
+            self._set_uid = pwd.getpwnam(  # pyright: ignore[reportAttributeAccessIssue]
+                self.owner[0]
+            ).pw_uid
+            self._set_gid = grp.getgrnam(  # pyright: ignore[reportAttributeAccessIssue]
+                self.owner[1]
+            ).gr_gid
 
         self.lockFilename = self.getLockFilename(lock_file_directory)
         self.is_locked = False
@@ -724,7 +728,9 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
                     with suppress(OSError):
                         self.stream.close()
                 # noinspection PyTypeChecker
-                self.stream = None  # type: ignore  # noqa: PGH003
+                self.stream = (  # pyright: ignore[reportIncompatibleVariableOverride]
+                    None
+                )
                 # Fall through to the fallback logic
 
         # Fallback logic: Try getsize first, then temporary open/seek/close
@@ -790,7 +796,9 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
 
     def _do_chown_and_chmod(self, filename: str) -> None:
         if HAS_CHOWN and self._set_uid is not None and self._set_gid is not None:
-            os.chown(filename, self._set_uid, self._set_gid)  # type: ignore # noqa: PGH003
+            os.chown(  # pyright: ignore[reportAttributeAccessIssue]
+                filename, self._set_uid, self._set_gid
+            )
 
         if HAS_CHMOD and self.chmod is not None:
             os.chmod(filename, self.chmod)
