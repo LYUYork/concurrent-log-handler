@@ -1,3 +1,5 @@
+<!-- markdownlint-disable MD026 -->
+
 # Concurrent Log Handler (CLH)
 
 [![PyPI version](https://img.shields.io/pypi/v/concurrent-log-handler.svg)](https://pypi.org/project/concurrent-log-handler/)
@@ -35,9 +37,9 @@ See [CHANGELOG.md](CHANGELOG.md) for details.
   - It has compatibility issues with complex logging setups and other robustness concerns.
   - **Recommendation:**
     - Simply use the standard CLH handlers (`ConcurrentRotatingFileHandler` or
-      `ConcurrentTimedRotatingFileHandler`) directly in your application. 
+      `ConcurrentTimedRotatingFileHandler`) directly in your application.
       Synchronous logging calls are simpler, more reliable, and performant enough for most use cases.
-    - If you need non-blocking logging calls, use the standard library patterns shown in 
+    - If you need non-blocking logging calls, use the standard library patterns shown in
       [Performance Patterns](docs/patterns.md).
   - The core CLH handlers remain fully supported and are not affected by this deprecation.
 
@@ -48,13 +50,13 @@ See [CHANGELOG.md](CHANGELOG.md) for details.
 ## Key Features
 
 - **Concurrent Logging:** Multiple processes and threads safely write to the same log file.
-- **File Rotation:** Size-based and time-based rotation with optional compression.  
+- **File Rotation:** Size-based and time-based rotation with optional compression.
 - **Cross-Platform:** Windows and POSIX support with reliable file locking.
 - **Customizable:** Control naming, permissions, line endings, and lock file placement.
 - **Performance Optimized:** Keeps files open between writes for better performance.
 - **Python 3.6 through current versions:** Modern Python support.
-- **Focused Design:** Reliably handles file operations. For non-blocking behavior, see our recommended 
-    [Application-Level Performance Patterns](docs/patterns.md).
+- **Focused Design:** Reliably handles file operations. For non-blocking behavior, see our recommended
+  [Application-Level Performance Patterns](docs/patterns.md).
 
 ## Primary Use Cases
 
@@ -119,8 +121,9 @@ logger.info("This is an exciting log message!")
 logger.info("Multiple processes can write here concurrently.")
 ```
 
-For more examples, including `asyncio` background logging,
-see [src/example.py](src/example.py).
+For a few more basic code examples, see [src/example.py](./src/example.py).
+For more advanced usage including non-blocking patterns, see
+the [Performance Patterns](./docs/patterns.md) guide.
 
 ## Important Usage Guidelines
 
@@ -143,12 +146,12 @@ in mind:
 
    Just to reemphasize the point above:
 
-   - If you use `multiprocessing` with the default `spawn` start method (the default on Windows and macOS), 
+   - If you use `multiprocessing` with the default `spawn` start method (the default on Windows and macOS),
      each child process must create its own CLH handler instance.
    - In your child process startup code, instantiate the handler as shown in the example above.
    - Usually this means you can call your standard logging setup function in the child.
    - Don't just initialize your logging code in the parent process and allow child processes to inherit loggers.
-     
+
 3. **Consistent Configuration:**
 
    - All processes writing to the _same log file_ **must** use identical settings for the CLH handler (e.g.,
@@ -264,7 +267,7 @@ need non-blocking patterns. Test your specific use case first - synchronous
 logging is simpler and more reliable.
 
 ### When You Might Need Non-Blocking Logging:
- 
+
 - Multiple threads logging heavily during error conditions
 - Web application request threads that shouldn't block on I/O
 - High-frequency logging in performance-critical applications
@@ -283,7 +286,7 @@ from concurrent_log_handler import ConcurrentRotatingFileHandler
 
 # Create queue and handlers
 log_queue = queue.Queue(maxsize=10000)
-file_handler = ConcurrentRotatingFileHandler("app.log", maxBytes=10*1024*1024)
+file_handler = ConcurrentRotatingFileHandler("app.log", maxBytes=10 * 1024 * 1024)
 queue_handler = logging.handlers.QueueHandler(log_queue)
 
 # Set up background processing
@@ -299,7 +302,7 @@ logging.info("This won't block your thread!")
 ### Complete Guide
 
 For comprehensive patterns including:
- 
+
 - **Web framework integration** (Django, Flask, FastAPI)
 - **Graceful degradation** when queues fill up
 - **Production monitoring** and error handling
@@ -308,7 +311,7 @@ For comprehensive patterns including:
 
 **See the complete guide: [Performance Patterns](docs/patterns.md)**
 
-This approach uses Python's standard library tools, giving you full control 
+This approach uses Python's standard library tools, giving you full control
 while keeping CLH focused on reliable file operations.
 
 ## Logging Configuration File Usage (`fileConfig`)
@@ -361,16 +364,16 @@ This utility is deprecated and will be removed in v1.0.0 due to compatibility
 issues with complex logging setups. It was provided for convenience but is not
 an integral part of CLH's functionality.
 
-**Important**: consider whether you need non-blocking logging at all. Typical 
+**Important**: consider whether you need non-blocking logging at all. Typical
 applications can get reasonable performance with the normal (synchronous) CLH handlers.
 
 ### Migration Steps:
 
 1. **Remove** calls to `setup_logging_queues()`
 
-2. **Replace** with the standard library patterns shown above or in 
+2. **Replace** with the standard library patterns shown above or in
    [Performance Patterns](docs/patterns.md)
-   
+
    **or**: simply use the CLH handlers directly in your application without the
    queue utility.
 
@@ -379,7 +382,8 @@ applications can get reasonable performance with the normal (synchronous) CLH ha
 ### Why the Change?
 
 The old utility:
-- ❌ Modified all handlers globally (monkey patching)  
+
+- ❌ Modified all handlers globally (monkey patching)
 - ❌ Had compatibility issues with advanced logging libraries
 - ❌ Used unbounded queues (memory risk)
 - ❌ Lacked proper error handling
@@ -387,7 +391,7 @@ The old utility:
 The new approach:
 
 - ✅ Uses standard library patterns
-- ✅ Gives applications explicit control  
+- ✅ Gives applications explicit control
 - ✅ Works with any logging setup
 - ✅ Provides better error visibility
 
@@ -395,12 +399,12 @@ The new approach:
 
 ## Best Practices and Limitations
 
-- **`maxBytes` is a Guideline:** The actual log file size might slightly exceed `maxBytes` 
+- **`maxBytes` is a Guideline:** The actual log file size might slightly exceed `maxBytes`
   because the check is performed _before_ writing a new log message. The file can
   grow by the size of that last message. This behavior prioritizes preserving log
   records. Standard `RotatingFileHandler` is stricter but may truncate.
 
-- **`backupCount` Performance:** Avoid excessively high `backupCount` values (e.g., \> 20-50). 
+- **`backupCount` Performance:** Avoid excessively high `backupCount` values (e.g., \> 20-50).
   Renaming many files during rotation can be slow, and this occurs while the log
   file is locked. Consider increasing `maxBytes` instead if you need to retain
   more history in fewer files.
