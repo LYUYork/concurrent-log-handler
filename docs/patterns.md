@@ -24,10 +24,11 @@ This does **not** usually apply to child processes created with the `fork` mode,
 or directly using the `fork()` system call or wrappers, because typically the
 file descriptors are inherited correctly. When processes are started in `spawn`
 mode, they do not inherit the parent's file descriptors and do not de-serialize
-correctly.
+correctly. This also does not apply to threads within the same process, which 
+are handled correctly by the standard library.
 
-Also this does not apply if you are using a single process application with
-threads.
+For more details about multiprocessing see the 
+[Important Usage Guidelines in the README.md](../README.md#important-usage-guidelines).
 
 ## Quick Start: The 80% Solution
 

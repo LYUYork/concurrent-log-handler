@@ -33,7 +33,12 @@ See [CHANGELOG.md](CHANGELOG.md) for details.
 - **Important Notice (June 2025): Background Logging Utility Deprecated**
   - The `concurrent_log_handler.queue` module is now **deprecated** (will be removed in v1.0.0).
   - It has compatibility issues with complex logging setups and other robustness concerns.
-  - **Recommended:** Use the standard library patterns shown in [Performance Patterns](docs/patterns.md).
+  - **Recommendation:**
+    - Simply use the standard CLH handlers (`ConcurrentRotatingFileHandler` or
+      `ConcurrentTimedRotatingFileHandler`) directly in your application. 
+      Synchronous logging calls are simpler, more reliable, and performant enough for most use cases.
+    - If you need non-blocking logging calls, use the standard library patterns shown in 
+      [Performance Patterns](docs/patterns.md).
   - The core CLH handlers remain fully supported and are not affected by this deprecation.
 
 - **Version 0.9.26**: (May 2025)
