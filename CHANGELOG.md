@@ -2,6 +2,13 @@
 
 - 0.9.28:
 
+  - Fix missing a rollover when the app was shutdown during the scheduled time.
+    [Issue #81](https://github.com/Preston-Landers/concurrent-log-handler/issues/81):
+
+    When restarting after missing scheduled rollover times, the handler was updating to the 
+    next future rollover without actually rotating accumulated logs. Now performs catch-up 
+    rollovers on initialization. Also adds a unit test to simulate this scenario.
+
   - Fix `NameError` when logging during Python shutdown.
     [Issue #80](https://github.com/Preston-Landers/concurrent-log-handler/issues/80):
   

@@ -29,6 +29,8 @@ See [CHANGELOG.md](CHANGELOG.md) for details.
 - **Version 0.9.28**: (June 10th, 2025)
   - Fixes errors when apps, esp. asyncio based, try to log during interpreter shutdown.
     Issue [#80](https://github.com/Preston-Landers/concurrent-log-handler/issues/80)
+  - Fix missing a rollover when the app was shutdown during the scheduled time.
+    [Issue #81](https://github.com/Preston-Landers/concurrent-log-handler/issues/81):
 - **Version 0.9.27**: (June 6th, 2025)
   - Fixes Issue [#73](https://github.com/Preston-Landers/concurrent-log-handler/issues/73)
     Fix timed rotation handler's file cleanup logic.
