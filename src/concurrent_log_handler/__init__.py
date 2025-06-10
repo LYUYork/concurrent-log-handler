@@ -1100,6 +1100,12 @@ class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
 
             current_time_for_init = self._get_current_time()
 
+            # If the rollover time is in the past, perform rollovers until we are caught up.
+            while self.rolloverAt <= current_time_for_init:
+                # The doRollover method will use the current (past) self.rolloverAt to name the rotated file,
+                # and then it will automatically compute and write the next rollover time.
+                self.doRollover()
+
             # Always validate and ensure we have a future rolloverAt
             if self.rolloverAt <= current_time_for_init:
                 self._console_log(
