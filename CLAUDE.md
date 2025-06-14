@@ -1,77 +1,134 @@
-# CLAUDE.md
+# Claude Contributor Guidelines for Concurrent Log Handler
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This document provides guidance for AI assistants, like Claude, to ensure
+contributions to this repository are consistent, high-quality, and align with
+the project's design principles.
 
-## Project Overview
+## 1. Project Philosophy
 
-Concurrent Log Handler (CLH) is a Python logging handler that enables multiple processes and threads to safely write to
-the same log file with rotation capabilities. It provides `ConcurrentRotatingFileHandler` (size-based rotation) and
-`ConcurrentTimedRotatingFileHandler` (time-based rotation).
+The core mission of Concurrent Log Handler (CLH) is to **preserve log records
+reliably** in multi-process or even multi-host environments (those with shared
+filesystems).
 
-## Essential Commands
+- **Reliability over Performance:** Prioritize data integrity and robust file
+  locking. Performance optimizations should never come at the cost of losing
+  logs, unless explicitly configurable by the user.
+- **Simplicity and Compatibility:** Adhere to the standard Python
+  `logging.Handler` interface. New features should feel like natural extensions,
+  not radical departures.
+- **Clarity:** Concurrency logic is complex. Prioritize clear, well-commented
+  code over overly clever or obscure implementations.
+- **Error handling:** fail loudly in development, gracefully in production.
+  
+In general, maintaining backwards compatibility is important.
 
-### Testing
+## 2. Development Environment Setup
+
+To begin, set up an editable installation with all development dependencies:
 
 ```bash
-# Run tests on current Python version
+# (Assuming Python virtual environment already established)
+# Install the package in editable mode with dev tools
+pip install -e .[dev]
+```
+
+## 3. Key Development Commands
+
+### Running Tests
+
+The test suite is the primary tool for verifying correctness, especially across
+multiple processes.
+
+```bash
+# Run tests on the current Python version
 pytest
 
-# Run specific test file
-pytest tests/test_stresstest.py
+# Run a specific test file (useful for focused development)
+pytest tests/test_shutdown_handling.py
 
-# Generate coverage report
-pytest --cov --cov-report=html --cov-report=xml --cov-report=lcov --cov-report=term-missing
-
-# Run tests across all supported Python versions
-hatch test
 ```
 
-### Linting and Formatting
+Tests across multiple platforms can be performed in the GitHub Actions.
+
+### Code Quality (Linting & Formatting)
+
+Code must be formatted and linted before it is considered complete.
 
 ```bash
-# Format code
+# Auto-format all code
 black .
 
-# Check for problems
-ruff check .
+# Check for linting errors and style issues
+ruff check . --fix
 
-# Type checking
+# Perform static type checking
 mypy --install-types --non-interactive src/concurrent_log_handler
+
+# On Linux-style platforms, this runs all of the above in one script:
+./lint.sh
 ```
 
-### Building
+### Building the Package
 
 ```bash
-# Development installation
-pip install -e .[dev]
-
-# Build distribution
+# Create the source and wheel distributions
 hatch build --clean
 ```
 
-## Architecture
+## 4. Core Architecture & Constraints
 
-The package structure centers around two main handler classes in `src/concurrent_log_handler/__init__.py`:
+The package structure is centered around handler classes in
+`src/concurrent_log_handler/__init__.py`.
 
-1. **ConcurrentRotatingFileHandler**: Handles size-based log rotation with multi-process safety using file locks (via
-   `portalocker`)
-2. **ConcurrentTimedRotatingFileHandler**: Adds time-based rotation capabilities on top of size-based rotation
+### Key Components
 
-Key architectural decisions:
+- **`ConcurrentRotatingFileHandler`**: The base class for size-based log
+  rotation.
+- **`ConcurrentTimedRotatingFileHandler`**: A subclass for time-based rotation.
+- **`portalocker`**: The library used for all advisory file locking, which is
+  the foundation of multi-process safety.
 
-- Each process must create its own handler instance (handlers cannot be shared/serialized)
-- Uses advisory file locking for process coordination
-- Lock files can be placed in a separate directory via `lockfile_dir` parameter
-- The `queue.py` module is deprecated and was removed. There are explanations
-  and migration steps in the README.md.
+### Architectural Constraints (Rules to Follow)
 
-## Testing Strategy
+- **Handlers are Not Shared:** A handler instance is created **per-process**.
+  They are not designed to be serialized or passed between processes. All new
+  features must respect this fundamental constraint.
+- **File-Based Locking:** Coordination is always managed through a `.lock` file
+  on a shared filesystem.
+- **Backwards Compatibility:** Changes should not break existing user
+  configurations without a clear deprecation path and warning.
 
-The test suite in `tests/` includes:
+## 5. Contribution Guidelines
 
-- Stress tests that verify multi-process safety with various configurations
-- Tests for both `keep_file_open=True` and `False` modes
-- Edge case testing for timed rotation
-- Failure scenario testing
+### Testing Requirements
 
-When adding new features, ensure tests cover multi-process scenarios as this is the core use case.
+New features are incomplete without tests. When adding or modifying code, you
+**must**:
+
+1. **Add or Update Tests:** Cover your new code paths and edge cases.
+2. **Verify Multi-Process Safety:** If your change touches file I/O or locking,
+   it must be verified in a multi-process stress test. This is the library's
+   most critical feature.
+3. **Run the Full Suite:** Run `pytest` to ensure your changes work. It's also
+    important that all changes work (or at least degrade gracefully) on all
+    supported Python versions, currently 3.6 and higher, and don't cause
+    regressions, including in the test execution.
+4. **Generate Coverage Reports:** Aim to maintain or increase test coverage.
+    Coverage of the main classes is currently at about ~70% and we would like
+    new code to adhere to similar numbers. Completely exhaustive coverage of
+    every single code path is not necessary.
+
+    ```bash
+    pytest --cov=src/concurrent_log_handler --cov-report=term-missing
+    ```
+
+### Coding Style
+
+- Use modern Python features and f-strings.
+- Type hints are required for all new functions and methods.
+    - Type hints must be compatible with Python 3.6 usage for now.
+- Follow the existing code's style for comments and structure. Docstrings should
+  explain the "why," while code comments explain the "how" of complex sections.
+- Do not introduce new external dependencies without very explicit
+  authorization.
+

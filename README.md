@@ -31,7 +31,7 @@ See [CHANGELOG.md](CHANGELOG.md) for details.
     Issue [#80](https://github.com/Preston-Landers/concurrent-log-handler/issues/80)
   - Fix missing rollovers when a worker was restarted before the next logging event,
     but after the last scheduled rollover.
-    [Issue #81](https://github.com/Preston-Landers/concurrent-log-handler/issues/81):
+    [Issue #81](https://github.com/Preston-Landers/concurrent-log-handler/issues/81)
 - **Version 0.9.27**: (June 6th, 2025)
   - Fixes Issue [#73](https://github.com/Preston-Landers/concurrent-log-handler/issues/73)
     Fix timed rotation handler's file cleanup logic.

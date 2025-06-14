@@ -13,6 +13,15 @@ controlling threading behavior.
 improvements (keeping files open) make synchronous logging fast enough for the
 majority of use cases.
 
+### Out of order logs
+
+If you decide to use non-blocking logging patterns, be aware that logs may be
+written out-of-order even within the same process, particularly if you use the
+[graceful degradation](#pattern-2-graceful-degradation) or the 
+[critical vs background logging](#pattern-3-critical-vs-background-logging) 
+patterns below.
+
+
 ### About multiprocessing spawn mode
 
 **Important**: If you are using `multiprocessing` especially with the `spawn`
