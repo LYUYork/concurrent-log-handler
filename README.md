@@ -29,7 +29,8 @@ See [CHANGELOG.md](CHANGELOG.md) for details.
 - **Version 0.9.28**: (June 10th, 2025)
   - Fixes errors when apps, esp. asyncio based, try to log during interpreter shutdown.
     Issue [#80](https://github.com/Preston-Landers/concurrent-log-handler/issues/80)
-  - Fix missing a rollover when the app was shutdown during the scheduled time.
+  - Fix missing rollovers when a worker was restarted before the next logging event,
+    but after the last scheduled rollover.
     [Issue #81](https://github.com/Preston-Landers/concurrent-log-handler/issues/81):
 - **Version 0.9.27**: (June 6th, 2025)
   - Fixes Issue [#73](https://github.com/Preston-Landers/concurrent-log-handler/issues/73)
@@ -61,7 +62,10 @@ See [CHANGELOG.md](CHANGELOG.md) for details.
 - **Performance Optimized:** Keeps files open between writes for better performance.
 - **Python 3.6 through current versions:** Modern Python support.
 - **Focused Design:** Reliably handles file operations. For non-blocking behavior, see our recommended
-  [Application-Level Performance Patterns](docs/patterns.md).
+  [Application-Level Performance Patterns](./docs/patterns.md), including patterns for
+  [graceful degradation](./docs/patterns.md#pattern-2-graceful-degradation) to synchronous logging, 
+  or using sync logging only for [higher priority](./docs/patterns.md#pattern-3-critical-vs-background-logging) 
+  levels.
 
 ## Primary Use Cases
 
@@ -230,7 +234,8 @@ handler = ConcurrentTimedRotatingFileHandler(
 
 It's recommended to use keyword arguments when configuring this class due to the number of parameters and their
 ordering. For more details on time-based rotation options (`when`, `interval`, `utc`), refer to the Python standard
-library documentation for `TimedRotatingFileHandler`.
+library documentation for 
+[`TimedRotatingFileHandler`](https://docs.python.org/3/library/logging.handlers.html#logging.handlers.TimedRotatingFileHandler).
 
 ### Common Configuration Options
 

@@ -2,7 +2,8 @@
 
 - 0.9.28:
 
-  - Fix missing a rollover when the app was shutdown during the scheduled time.
+  - Fix missing rollovers when a worker was restarted before the next logging event,
+    but after the last scheduled rollover.
     [Issue #81](https://github.com/Preston-Landers/concurrent-log-handler/issues/81):
 
     When restarting after missing scheduled rollover times, the handler was updating to the 

@@ -62,7 +62,8 @@ Key architectural decisions:
 - Each process must create its own handler instance (handlers cannot be shared/serialized)
 - Uses advisory file locking for process coordination
 - Lock files can be placed in a separate directory via `lockfile_dir` parameter
-- The `queue.py` module is deprecated and should not be used
+- The `queue.py` module is deprecated and was removed. There are explanations
+  and migration steps in the README.md.
 
 ## Testing Strategy
 
