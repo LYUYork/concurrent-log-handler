@@ -1,0 +1,38 @@
+
+#docker-compose.yml
+#version: "2.1"
+services:
+  webtop:
+    # image: lscr.io/linuxserver/webtop:latest
+    # container_name: webtop
+    
+    image: lscr.io/linuxserver/chromium:latest
+    container_name: chromium
+    
+    # security_opt:
+    #  - seccomp:unconfined #optional
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+      - SUBFOLDER=/ #optional
+      - TITLE=Webtop #optional
+      - CUSTOM_USER=abc #optional default:abc
+      - PASSWORD=zse.. #optional 
+      # - DOCKER_MODS=linuxserver/mods:universal-internationalization
+      # - LC_ALL=zh_CN.UTF-8
+      
+      # chinese
+      - DOCKER_MODS=linuxserver/mods:universal-package-install
+      - INSTALL_PACKAGES=font-noto-cjk
+      - LC_ALL=zh_CN.UTF-8
+    # volumes:
+      # - /path/to/data:/config
+      # - /var/run/docker.sock:/var/run/docker.sock #optional
+    ports:
+      - 3000:3000
+      # - 3001:3001
+    # devices:
+    #   - /dev/dri:/dev/dri #optional
+    shm_size: "1gb" #optional
+    restart: unless-stopped
