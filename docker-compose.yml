@@ -6,9 +6,12 @@ services:
     # image: lscr.io/linuxserver/webtop:latest
     # container_name: webtop
     
-    image: lscr.io/linuxserver/chromium:latest
-    container_name: chromium
+    image: linuxserver/chrome:latest
+    container_name: chrome
     
+    # image: lscr.io/linuxserver/chromium:latest
+    # container_name: chromium
+
     # security_opt:
     #  - seccomp:unconfined #optional
     environment:
@@ -22,10 +25,11 @@ services:
       # - DOCKER_MODS=linuxserver/mods:universal-internationalization
       # - LC_ALL=zh_CN.UTF-8
       
-      # chinese
-      - DOCKER_MODS=linuxserver/mods:universal-package-install
-      - INSTALL_PACKAGES=font-noto-cjk
-      - LC_ALL=zh_CN.UTF-8
+      # # chinese
+      # - DOCKER_MODS=linuxserver/mods:universal-package-install
+      # - INSTALL_PACKAGES=font-noto-cjk
+      # - LC_ALL=zh_CN.UTF-8
+      
     # volumes:
       # - /path/to/data:/config
       # - /var/run/docker.sock:/var/run/docker.sock #optional
