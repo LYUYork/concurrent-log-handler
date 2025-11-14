@@ -6,7 +6,8 @@ services:
     # image: lscr.io/linuxserver/webtop:latest
     # container_name: webtop
     
-    image: linuxserver/chrome:latest
+    # image: linuxserver/chrome:latest
+    image: linuxserver/chrome:141.0.7390
     container_name: chrome
     
     # image: lscr.io/linuxserver/chromium:latest
