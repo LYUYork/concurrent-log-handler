@@ -16,5 +16,12 @@
       "ghcr.io/devcontainers/features/docker-in-docker": {
         "moby": false
       }
-    }
+    },
+	"forwardPorts": [3000],
+	"portsAttributes": {
+		"3000": {
+			"visibility": "public"
+		}
+	},
+	"postStartCommand": "docker compose up -d"
 }
